@@ -1,0 +1,21 @@
+{
+  "name": "ustaz-undertaker",
+  "compatibility_date": "2026-04-26",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "ustazundertaker.com",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.ustazundertaker.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./public"
+  },
+  "build": {
+    "command": "rm -rf public && mkdir -p public && cp index.html styles.css script.js public/ && mkdir -p public/assets && cp -R assets/. public/assets/"
+  }
+}
