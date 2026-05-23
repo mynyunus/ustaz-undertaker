@@ -21,6 +21,6 @@
     "GOOGLE_DOC_ID": "1gK5AdhT7wEc_M8dYzRBTcjbNtA0FrYCDvjqCdn_bGgM"
   },
   "build": {
-    "command": "rm -rf public && mkdir -p public && cp index.html styles.css script.js public/ && mkdir -p public/assets && cp -R assets/. public/assets/"
+    "command": "rm -rf public && mkdir -p public && cp index.html styles.css script.js robots.txt sitemap.xml public/ && mkdir -p public/assets && cp -R assets/. public/assets/"
   }
 }

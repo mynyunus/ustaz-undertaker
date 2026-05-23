@@ -5,6 +5,10 @@ const CACHE_TTL_SECONDS = 300;
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.hostname === 'www.ustazundertaker.com') {
+      url.hostname = 'ustazundertaker.com';
+      return Response.redirect(url.toString(), 301);
+    }
 
     if (url.pathname === '/api/articles') {
       return handleArticlesApi(request, env, ctx);
@@ -754,6 +758,7 @@ function jsonResponse(payload, status = 200, extraHeaders = {}) {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
+      'X-Robots-Tag': 'noindex, nofollow',
       ...corsHeaders(),
       ...extraHeaders
     }
