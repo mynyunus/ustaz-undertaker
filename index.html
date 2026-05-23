@@ -458,17 +458,33 @@
           </div>
 
           <div id="article-grid" class="article-grid" hidden></div>
+        </div>
 
-          <article id="article-detail" class="article-detail reveal" hidden>
-            <div class="article-detail-head">
-              <p class="eyebrow article-detail-label">Artikel Dipilih</p>
-              <h3 id="article-detail-title">Artikel</h3>
-              <p id="article-detail-meta" class="article-detail-meta"></p>
+        <div id="article-reader" class="article-reader" hidden aria-hidden="true">
+          <button
+            type="button"
+            class="article-reader-backdrop"
+            id="article-reader-backdrop"
+            aria-label="Tutup paparan artikel"
+          ></button>
+          <article class="article-reader-panel" role="dialog" aria-modal="true" aria-labelledby="article-reader-title">
+            <div class="article-reader-head">
+              <p class="eyebrow article-reader-label">Bacaan Penuh</p>
+              <h3 id="article-reader-title">Artikel</h3>
+              <p id="article-reader-meta" class="article-reader-meta"></p>
             </div>
-            <div id="article-detail-body" class="article-detail-body"></div>
-            <div class="article-detail-actions">
+            <button
+              type="button"
+              class="article-reader-close"
+              id="article-reader-close"
+              aria-label="Tutup bacaan artikel"
+            >
+              Tutup
+            </button>
+            <div id="article-reader-body" class="article-reader-body"></div>
+            <div class="article-reader-actions">
               <a
-                id="article-open-doc"
+                id="article-reader-open-doc"
                 class="btn btn-outline"
                 href="#"
                 target="_blank"

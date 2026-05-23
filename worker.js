@@ -210,7 +210,7 @@ function buildArticlesFromDocument(documentJson, docId) {
         ];
 
   return tabsToRender.map((tab, index) => {
-    const { html, plain } = parseDocumentTabContent(tab.documentTab);
+    const { html, plain } = parseDocumentTabContent(tab.documentTab, documentJson.lists || {});
     const cleanText = normalizeWhitespace(plain);
 
     return {
@@ -261,27 +261,25 @@ function flattenTabs(tabs) {
   return result;
 }
 
-function parseDocumentTabContent(documentTab) {
+function parseDocumentTabContent(documentTab, listDefinitions = {}) {
   const structuralElements = documentTab?.body?.content || [];
-  const htmlParts = [];
-  const plainParts = [];
+  const blocks = [];
 
   for (const element of structuralElements) {
-    parseStructuralElement(element, htmlParts, plainParts);
+    parseStructuralElement(element, blocks, listDefinitions);
   }
 
   return {
-    html: htmlParts.join(''),
-    plain: plainParts.join('\n')
+    html: renderArticleBlocks(blocks),
+    plain: blocks.map((block) => block.plain).join('\n')
   };
 }
 
-function parseStructuralElement(element, htmlParts, plainParts) {
+function parseStructuralElement(element, blocks, listDefinitions) {
   if (element.paragraph) {
-    const { html, plain } = parseParagraph(element.paragraph);
-    if (plain.trim()) {
-      htmlParts.push(`<p>${html}</p>`);
-      plainParts.push(plain);
+    const parsed = parseParagraph(element.paragraph, listDefinitions);
+    if (parsed && parsed.plain.trim()) {
+      blocks.push(parsed);
     }
     return;
   }
@@ -290,7 +288,7 @@ function parseStructuralElement(element, htmlParts, plainParts) {
     for (const row of element.table.tableRows || []) {
       for (const cell of row.tableCells || []) {
         for (const content of cell.content || []) {
-          parseStructuralElement(content, htmlParts, plainParts);
+          parseStructuralElement(content, blocks, listDefinitions);
         }
       }
     }
@@ -299,12 +297,12 @@ function parseStructuralElement(element, htmlParts, plainParts) {
 
   if (element.tableOfContents) {
     for (const content of element.tableOfContents.content || []) {
-      parseStructuralElement(content, htmlParts, plainParts);
+      parseStructuralElement(content, blocks, listDefinitions);
     }
   }
 }
 
-function parseParagraph(paragraph) {
+function parseParagraph(paragraph, listDefinitions = {}) {
   const htmlParts = [];
   const plainParts = [];
 
@@ -316,7 +314,7 @@ function parseParagraph(paragraph) {
     if (textRun?.content) {
       const content = textRun.content;
       const linkUrl = textRun.textStyle?.link?.url;
-      htmlParts.push(renderInlineText(content, linkUrl));
+      htmlParts.push(renderInlineText(content, linkUrl, textRun.textStyle));
       plainParts.push(content);
       continue;
     }
@@ -338,11 +336,57 @@ function parseParagraph(paragraph) {
   const html = htmlParts.join('').replace(/\n/g, '<br>').trim();
   const plain = plainParts.join('').replace(/\n/g, ' ').trim();
 
-  return { html, plain };
+  if (!plain) {
+    return null;
+  }
+
+  const markdownBlock = parseMarkdownBlockFromPlain(plain);
+  if (markdownBlock) {
+    return markdownBlock;
+  }
+
+  const normalizedHtml = applyInlineMarkdownFormatting(html);
+
+  const namedStyleType = paragraph.paragraphStyle?.namedStyleType || '';
+  const headingTag = mapHeadingTag(namedStyleType);
+  if (headingTag) {
+    return {
+      type: 'heading',
+      tag: headingTag,
+      html: normalizedHtml,
+      plain
+    };
+  }
+
+  const listId = paragraph.bullet?.listId;
+  if (listId) {
+    const nestingLevel = Number(paragraph.bullet?.nestingLevel || 0);
+    const listType = resolveListType(listDefinitions, listId, nestingLevel);
+    return {
+      type: 'list_item',
+      listId,
+      nestingLevel,
+      listType,
+      html: normalizedHtml,
+      plain
+    };
+  }
+
+  return {
+    type: 'paragraph',
+    html: normalizedHtml,
+    plain
+  };
 }
 
-function renderInlineText(content, linkUrl = null) {
-  const safeText = escapeHtml(content || '');
+function renderInlineText(content, linkUrl = null, textStyle = null) {
+  let safeText = escapeHtml(content || '');
+  safeText = applyInlineMarkdownFormatting(safeText);
+
+  if (textStyle?.bold) safeText = `<strong>${safeText}</strong>`;
+  if (textStyle?.italic) safeText = `<em>${safeText}</em>`;
+  if (textStyle?.underline) safeText = `<u>${safeText}</u>`;
+  if (textStyle?.strikethrough) safeText = `<s>${safeText}</s>`;
 
   if (!linkUrl) {
     return safeText;
@@ -350,6 +394,200 @@ function renderInlineText(content, linkUrl = null) {
 
   const safeUrl = escapeAttribute(linkUrl);
   return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeText}</a>`;
+}
+
+function parseMarkdownBlockFromPlain(plainText) {
+  const trimmed = normalizeWhitespace(plainText);
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^-{3,}$/.test(trimmed)) {
+    return {
+      type: 'divider',
+      html: '',
+      plain: ''
+    };
+  }
+
+  const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+  if (headingMatch) {
+    const level = Math.min(6, headingMatch[1].length);
+    const content = headingMatch[2].trim();
+    return {
+      type: 'heading',
+      tag: `h${level}`,
+      html: renderPlainInlineWithMarkdown(content),
+      plain: content
+    };
+  }
+
+  const quoteMatch = trimmed.match(/^>\s+(.+)$/);
+  if (quoteMatch) {
+    const content = quoteMatch[1].trim();
+    return {
+      type: 'blockquote',
+      html: renderPlainInlineWithMarkdown(content),
+      plain: content
+    };
+  }
+
+  const unorderedMatch = trimmed.match(/^[-*]\s+(.+)$/);
+  if (unorderedMatch) {
+    const content = unorderedMatch[1].trim();
+    return {
+      type: 'list_item',
+      listId: 'md-ul',
+      nestingLevel: 0,
+      listType: 'ul',
+      html: renderPlainInlineWithMarkdown(content),
+      plain: content
+    };
+  }
+
+  const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/);
+  if (orderedMatch) {
+    const content = orderedMatch[1].trim();
+    return {
+      type: 'list_item',
+      listId: 'md-ol',
+      nestingLevel: 0,
+      listType: 'ol',
+      html: renderPlainInlineWithMarkdown(content),
+      plain: content
+    };
+  }
+
+  return null;
+}
+
+function renderPlainInlineWithMarkdown(rawText) {
+  const links = [];
+  const textWithTokens = String(rawText || '').replace(
+    /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    (_, label, url) => {
+      const token = `@@MDLINK${links.length}@@`;
+      const safeLabel = escapeHtml(label);
+      const safeUrl = escapeAttribute(url);
+      links.push(`<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${safeLabel}</a>`);
+      return token;
+    }
+  );
+
+  let safeText = escapeHtml(textWithTokens);
+  safeText = applyInlineMarkdownFormatting(safeText);
+
+  links.forEach((htmlLink, index) => {
+    safeText = safeText.replaceAll(`@@MDLINK${index}@@`, htmlLink);
+  });
+
+  return safeText;
+}
+
+function applyInlineMarkdownFormatting(text) {
+  return String(text || '')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*]+)\*(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>')
+    .replace(/(^|[\s(])_([^_]+)_(?=[\s).,!?:;]|$)/g, '$1<em>$2</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+
+function mapHeadingTag(namedStyleType) {
+  switch (namedStyleType) {
+    case 'TITLE':
+    case 'HEADING_1':
+      return 'h2';
+    case 'SUBTITLE':
+    case 'HEADING_2':
+      return 'h3';
+    case 'HEADING_3':
+      return 'h4';
+    case 'HEADING_4':
+      return 'h5';
+    case 'HEADING_5':
+    case 'HEADING_6':
+      return 'h6';
+    default:
+      return null;
+  }
+}
+
+function resolveListType(listDefinitions, listId, nestingLevel) {
+  const defaultType = 'ul';
+  const listDef = listDefinitions?.[listId];
+  const nestingLevels = listDef?.listProperties?.nestingLevels;
+
+  if (!Array.isArray(nestingLevels) || nestingLevels.length === 0) {
+    return defaultType;
+  }
+
+  const safeLevel = Math.max(0, Math.min(Number(nestingLevel) || 0, nestingLevels.length - 1));
+  const glyphType = nestingLevels[safeLevel]?.glyphType || '';
+
+  return /DECIMAL|DIGIT|ROMAN|ALPHA/i.test(glyphType) ? 'ol' : 'ul';
+}
+
+function renderArticleBlocks(blocks) {
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return '';
+  }
+
+  const htmlParts = [];
+  const listStack = [];
+
+  const closeListsToDepth = (targetDepth) => {
+    while (listStack.length > targetDepth) {
+      const listType = listStack.pop();
+      htmlParts.push(`</${listType}>`);
+    }
+  };
+
+  for (const block of blocks) {
+    if (block.type === 'list_item') {
+      const targetDepth = 1;
+      const listType = block.listType || 'ul';
+
+      closeListsToDepth(targetDepth);
+
+      while (listStack.length < targetDepth) {
+        listStack.push(listType);
+        htmlParts.push(`<${listType}>`);
+      }
+
+      if (listStack[listStack.length - 1] !== listType) {
+        closeListsToDepth(Math.max(0, targetDepth - 1));
+        listStack.push(listType);
+        htmlParts.push(`<${listType}>`);
+      }
+
+      htmlParts.push(`<li>${block.html}</li>`);
+      continue;
+    }
+
+    closeListsToDepth(0);
+
+    if (block.type === 'divider') {
+      htmlParts.push('<hr>');
+      continue;
+    }
+
+    if (block.type === 'blockquote') {
+      htmlParts.push(`<blockquote><p>${block.html}</p></blockquote>`);
+      continue;
+    }
+
+    if (block.type === 'heading' && block.tag) {
+      htmlParts.push(`<${block.tag}>${block.html}</${block.tag}>`);
+      continue;
+    }
+
+    htmlParts.push(`<p>${block.html}</p>`);
+  }
+
+  closeListsToDepth(0);
+  return htmlParts.join('');
 }
 
 function normalizeWhitespace(text) {
