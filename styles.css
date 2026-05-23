@@ -86,9 +86,10 @@ a {
 }
 
 .brand-logo {
-  width: 2.8rem;
-  height: 2.8rem;
+  width: 3rem;
+  height: 3rem;
   object-fit: contain;
+  object-position: center;
   flex-shrink: 0;
 }
 
@@ -1469,8 +1470,8 @@ body.article-reader-open {
   }
 
   .brand-logo {
-    width: 3.15rem;
-    height: 3.15rem;
+    width: 3.35rem;
+    height: 3.35rem;
   }
 
   .hero-grid,
