@@ -1,5 +1,6 @@
 {
   "name": "ustaz-undertaker",
+  "main": "worker.js",
   "compatibility_date": "2026-04-26",
   "workers_dev": false,
   "routes": [
@@ -13,7 +14,11 @@
     }
   ],
   "assets": {
-    "directory": "./public"
+    "directory": "./public",
+    "binding": "ASSETS"
+  },
+  "vars": {
+    "GOOGLE_DOC_ID": "1gK5AdhT7wEc_M8dYzRBTcjbNtA0FrYCDvjqCdn_bGgM"
   },
   "build": {
     "command": "rm -rf public && mkdir -p public && cp index.html styles.css script.js public/ && mkdir -p public/assets && cp -R assets/. public/assets/"

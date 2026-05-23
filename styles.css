@@ -548,6 +548,144 @@ h3 {
   transform: scale(1.02);
 }
 
+#artikel .section-head {
+  text-align: center;
+}
+
+#artikel .section-head .eyebrow,
+#artikel .section-head h2,
+#artikel .section-head p {
+  margin-inline: auto;
+}
+
+#artikel .section-head p {
+  max-width: 68ch;
+}
+
+.article-status {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(10, 27, 46, 0.08);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-soft);
+  padding: 0.95rem 1rem;
+  margin: 0.35rem 0 1rem;
+  color: var(--text);
+}
+
+.article-status.is-error {
+  color: #8b2d2d;
+  border-color: rgba(139, 45, 45, 0.22);
+  background: rgba(255, 246, 246, 0.92);
+}
+
+.article-grid {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.article-card {
+  width: 100%;
+  border: 1px solid rgba(10, 27, 46, 0.1);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+  padding: 1rem;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.article-card:hover,
+.article-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: rgba(15, 45, 82, 0.28);
+  box-shadow: 0 16px 30px rgba(15, 45, 82, 0.12);
+}
+
+.article-card.is-active {
+  border-color: rgba(15, 45, 82, 0.38);
+  box-shadow: 0 16px 30px rgba(15, 45, 82, 0.15);
+}
+
+.article-card-order {
+  display: inline-block;
+  color: var(--blue-primary);
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.article-card h3 {
+  margin: 0.55rem 0 0.5rem;
+  color: var(--headline);
+  font-size: 1rem;
+}
+
+.article-card p {
+  margin: 0;
+  color: var(--text);
+}
+
+.article-card-meta {
+  display: inline-block;
+  margin-top: 0.8rem;
+  color: var(--blue-primary);
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.75rem;
+}
+
+.article-detail {
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid rgba(10, 27, 46, 0.1);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: clamp(1rem, 2.2vw, 1.5rem);
+}
+
+.article-detail-label {
+  margin-bottom: 0.5rem;
+}
+
+.article-detail h3 {
+  font-size: 1.2rem;
+  color: var(--headline);
+}
+
+.article-detail-meta {
+  margin: 0.55rem 0 0.3rem;
+  color: var(--blue-primary);
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.78rem;
+}
+
+.article-detail-body {
+  margin-top: 0.7rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.article-detail-body p {
+  margin: 0;
+  color: #334455;
+}
+
+.article-detail-body a {
+  color: var(--blue-primary);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
+
+.article-detail-actions {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
 #media .section-head {
   text-align: center;
 }
@@ -1117,6 +1255,14 @@ h3 {
     text-align: left;
   }
 
+  .article-card {
+    text-align: left;
+  }
+
+  .article-detail-actions {
+    justify-content: center;
+  }
+
   .floating-wa {
     opacity: 0;
     pointer-events: none;
@@ -1184,6 +1330,10 @@ h3 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .article-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .sticky-cta {
     justify-content: center;
   }
@@ -1226,6 +1376,10 @@ h3 {
 
   .card-grid.four {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .article-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   #about .about-owner-card {
