@@ -269,16 +269,19 @@ function parseDocumentTabContent(documentTab, listDefinitions = {}) {
     parseStructuralElement(element, blocks, listDefinitions);
   }
 
+  const normalizedBlocks = normalizeArticleBlocks(blocks);
+
   return {
-    html: renderArticleBlocks(blocks),
-    plain: blocks.map((block) => block.plain).join('\n')
+    html: renderArticleBlocks(normalizedBlocks),
+    plain: normalizedBlocks.map((block) => block.plain).join('\n')
   };
 }
 
 function parseStructuralElement(element, blocks, listDefinitions) {
   if (element.paragraph) {
     const parsed = parseParagraph(element.paragraph, listDefinitions);
-    if (parsed && parsed.plain.trim()) {
+    const hasPlainText = typeof parsed?.plain === 'string' ? parsed.plain.trim().length > 0 : false;
+    if (parsed && (hasPlainText || parsed.type === 'divider')) {
       blocks.push(parsed);
     }
     return;
@@ -333,7 +336,7 @@ function parseParagraph(paragraph, listDefinitions = {}) {
     }
   }
 
-  const html = htmlParts.join('').replace(/\n/g, '<br>').trim();
+  const html = sanitizeParagraphHtml(htmlParts.join(''));
   const plain = plainParts.join('').replace(/\n/g, ' ').trim();
 
   if (!plain) {
@@ -353,6 +356,15 @@ function parseParagraph(paragraph, listDefinitions = {}) {
     return {
       type: 'heading',
       tag: headingTag,
+      html: normalizedHtml,
+      plain
+    };
+  }
+
+  if (paragraph.paragraphStyle?.headingId) {
+    return {
+      type: 'heading',
+      tag: 'h2',
       html: normalizedHtml,
       plain
     };
@@ -494,6 +506,13 @@ function applyInlineMarkdownFormatting(text) {
     .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
+function sanitizeParagraphHtml(rawHtml) {
+  return String(rawHtml || '')
+    .replace(/\n/g, '<br>')
+    .replace(/(<br>\s*)+$/g, '')
+    .trim();
+}
+
 function mapHeadingTag(namedStyleType) {
   switch (namedStyleType) {
     case 'TITLE':
@@ -588,6 +607,91 @@ function renderArticleBlocks(blocks) {
 
   closeListsToDepth(0);
   return htmlParts.join('');
+}
+
+function normalizeArticleBlocks(blocks) {
+  if (!Array.isArray(blocks) || blocks.length === 0) {
+    return [];
+  }
+
+  const refined = [];
+
+  for (let index = 0; index < blocks.length; index += 1) {
+    const current = blocks[index];
+    const next = blocks[index + 1] || null;
+    const prev = refined[refined.length - 1] || null;
+
+    if (current?.type !== 'paragraph') {
+      refined.push(current);
+      continue;
+    }
+
+    const text = normalizeWhitespace(current.plain || '');
+    const words = text.split(' ').filter(Boolean);
+    const isShortLine = text.length > 0 && text.length <= 82 && words.length <= 12;
+    const endsAsSentence = /[.!?]$/.test(text);
+
+    if (/^\d+\.\s+/.test(text) && text.length <= 120) {
+      refined.push({
+        ...current,
+        type: 'heading',
+        tag: 'h3'
+      });
+      continue;
+    }
+
+    if (
+      isShortLine &&
+      !endsAsSentence &&
+      !/[:,]$/.test(text) &&
+      /^[A-Za-z0-9(“"'`]/.test(text) &&
+      !/^(dan|atau|yang|ia|ini|itu)\b/i.test(text) &&
+      (prev?.type === 'divider' || prev === null || prev?.type === 'heading')
+    ) {
+      refined.push({
+        ...current,
+        type: 'heading',
+        tag: prev === null ? 'h1' : 'h2'
+      });
+      continue;
+    }
+
+    if (shouldInferListItem(text, prev, next)) {
+      refined.push({
+        ...current,
+        type: 'list_item',
+        listId: 'inferred-ul',
+        nestingLevel: 0,
+        listType: 'ul'
+      });
+      continue;
+    }
+
+    refined.push(current);
+  }
+
+  return refined;
+}
+
+function shouldInferListItem(text, previousBlock, nextBlock) {
+  if (!text || !previousBlock) return false;
+
+  const words = text.split(' ').filter(Boolean);
+  if (words.length === 0 || words.length > 12 || text.length > 86) return false;
+  if (/[.!?]$/.test(text)) return false;
+  if (/[:,]$/.test(text)) return false;
+  if (/^(https?:\/\/|www\.)/i.test(text)) return false;
+
+  const prevText = normalizeWhitespace(previousBlock.plain || '');
+  const prevIntroducesList = /(:|ialah|seperti berikut|antaranya)$/i.test(prevText);
+  const continuesInferredList =
+    previousBlock.type === 'list_item' && previousBlock.listId === 'inferred-ul';
+
+  if (!prevIntroducesList && !continuesInferredList) return false;
+
+  if (nextBlock?.type === 'heading' || nextBlock?.type === 'divider') return false;
+
+  return true;
 }
 
 function normalizeWhitespace(text) {

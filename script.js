@@ -294,6 +294,7 @@ function openArticleReader(article, sourceDocId = null) {
   articleReaderTitle.textContent = article.title || 'Artikel';
   articleReaderMeta.textContent = `${article.wordCount || 0} patah perkataan`;
   articleReaderBody.innerHTML = article.contentHtml || '<p>Artikel ini sedang dikemaskini.</p>';
+  articleReaderBody.scrollTop = 0;
 
   articleReaderBody.querySelectorAll('a').forEach((anchor) => {
     anchor.setAttribute('target', '_blank');
@@ -322,6 +323,9 @@ function closeArticleReader() {
   articleReader.classList.remove('is-open');
   articleReader.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('article-reader-open');
+  if (articleReaderBody) {
+    articleReaderBody.scrollTop = 0;
+  }
 
   if (articleReaderHideTimer) {
     window.clearTimeout(articleReaderHideTimer);
